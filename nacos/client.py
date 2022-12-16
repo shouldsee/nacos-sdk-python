@@ -1163,6 +1163,46 @@ class NacosClient:
         """
         self.subscribe_timer_manager.stop()
 
+class NacosClientService(object):
+    '''
+    Thinly wrapped object for simpler service registery
+    '''
+    def __init__(self, urls, service_name, ip, port, ephemeral= True,**kw):
+        # super().__init__(urls, **kw)
+        self.client = NacosClient(urls,**kw)
+        self.service_name = service_name
+        self.ip = ip
+        self.port = port
+        self.ephemeral = ephemeral
+        self.heartbeat_thread = None
+    def send_heartbeat(self,**kw):
+        return self.client.send_heartbeat(self.service_name, self.ip, self.port, 
+        ephemeral = self.ephemeral,
+         **kw)
+    def cycle_send_heartbeat(self, wait_sec, **kw):
+        while True:
+            self.send_heartbeat(**kw)
+            time.sleep(wait_sec)
+    def start_heartbeat_thread(self,wait_sec=10):
+        t = Thread(target=self.cycle_send_heartbeat,args=(wait_sec,))
+        t.start()
+        self.heartbeat_thread = t
+
+    def add_naming_instance(self,**kw):
+        return self.client.add_naming_instance(self.service_name, self.ip, self.port,
+        ephemeral = self.ephemeral,
+        **kw)
+
+    def register(self,**kw):
+        return self.add_naming_instance(**kw)
+
+    def remove_naming_instance(self,**kw):
+        return self.client.remove_naming_instance(self.service_name, self.ip, self.port,
+        ephemeral = self.ephemeral,
+        **kw)
+        
+    def deregister(self,**kw):
+        return self.remove_naming_instance(**kw)
 
 if DEBUG:
     NacosClient.set_debugging()
